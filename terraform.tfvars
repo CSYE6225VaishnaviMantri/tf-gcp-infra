@@ -1,0 +1,15 @@
+project_id            = "csye6225-414320"
+region                = "us-east1"
+zone                  = "us-east1-c"
+vpcname               = "virtual-network"
+websubnetname         = "webapp"
+dbsubnetname          = "db"
+webapproutename       = "webapp-subnet-route"
+webappcidr            = "10.0.1.0/24"
+dbcidr                = "10.0.2.0/24"
+webapproutecidr       = "0.0.0.0/0"
+autocreatesubnets     = false
+deletedefaultroutes   = true
+routingmode           = "REGIONAL"
+privateipgoogleaccess = true
+nexthopgateway        = "default-internet-gateway"
