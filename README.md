@@ -6,6 +6,7 @@ This repository contains Terraform configuration files for setting up networking
 
 ## Steps:
 
+
 1. **Install and Set Up gcloud CLI:**
 
    Make sure you have the gcloud command-line tool installed and configured with the appropriate credentials.
