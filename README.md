@@ -4,7 +4,8 @@
 
 This repository contains Terraform configuration files for setting up networking resources on Google Cloud Platform (GCP). The objective is to create a Terraform configuration that allows the creation of multiple Virtual Private Clouds (VPCs) along with their associated resources in the same GCP project and region.
 
-## Prerequisites
+## Steps:
+
 
 1. **Install and Set Up gcloud CLI:**
 
