@@ -1,4 +1,4 @@
-project_id            = "csye6225-414320"
+project_id            = "devgcp-415021"
 region                = "us-east1"
 zone                  = "us-east1-c"
 vpcname               = "virtual-network"
@@ -13,3 +13,10 @@ deletedefaultroutes   = true
 routingmode           = "REGIONAL"
 privateipgoogleaccess = true
 nexthopgateway        = "default-internet-gateway"
+virtualmachinename       = "assignment4"
+virtualmachinezone       = "us-east1-c"
+virtualmachinetype       = "e2-medium"
+virtualmachineimage      = "custom-app-image1-202402211002"
+virtualmachinedisktype   = "pd-balanced"
+virtualmachinedisksizegb = 100
+appport                  = "8080"
