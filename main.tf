@@ -19,7 +19,6 @@ resource "google_compute_network" "vpcnetwork" {
   routing_mode                    = var.routingmode
   delete_default_routes_on_create = var.deletedefaultroutes
 }
-
 resource "google_compute_subnetwork" "webapp" {
   name                     = var.websubnetname
   ip_cidr_range            = var.webappcidr
@@ -41,3 +40,42 @@ resource "google_compute_route" "webapp_route" {
   priority         = 1000
   next_hop_gateway = var.nexthopgateway
 }
+
+resource "google_compute_firewall" "allow_webapplication_port" {
+  name    = "${var.vpcname}-allow-webapplication"
+  network = google_compute_network.vpcnetwork.id
+  allow {
+    protocol = "tcp"
+    ports    = [var.appport]
+  }
+  source_ranges = ["0.0.0.0/0"]
+}
+resource "google_compute_firewall" "deny_ssh_port" {
+  name    = "${var.vpcname}-deny-ssh"
+  network = google_compute_network.vpcnetwork.id
+  deny {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+  source_ranges = ["0.0.0.0/0"]
+}
+resource "google_compute_instance" "vm_instance" {
+  name         = var.virtualmachinename
+  zone         = var.virtualmachinezone
+  machine_type = var.virtualmachinetype
+  boot_disk {
+    initialize_params {
+      image = var.virtualmachineimage
+      type  = var.virtualmachinedisktype
+      size  = var.virtualmachinedisksizegb
+    }
+  }
+  
+  network_interface {
+    network    = google_compute_network.vpcnetwork.id
+    subnetwork = google_compute_subnetwork.webapp.self_link
+    access_config {
+    }
+  }
+}
+
