@@ -1,6 +1,6 @@
 # tf-gcp-infra
 
-# Infrastructure as Code with Terraform on GCP
+# Infrastructure as Code with Terraform on Google Cloud Platform:
 
 This repository contains Terraform configuration files for setting up networking resources on Google Cloud Platform (GCP). The objective is to create a Terraform configuration that allows the creation of multiple Virtual Private Clouds (VPCs) along with their associated resources in the same GCP project and region.
 
