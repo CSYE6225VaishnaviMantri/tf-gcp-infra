@@ -48,8 +48,13 @@ This repository contains Terraform configuration files for setting up networking
 4. **Commands to Run Terraform Confirguation Files**
 
     1.Initialize Terraform: terraform init
+
     2.Plan the Infrastructure: terraform plan
+
     3.Apply the Infrastructure: terraform apply
+
     4.Confirm the changes by typing yes when prompted.
+
     5.Destroy the Infrastructure (cleanup): terraform destroy
+    
     Confirm the destruction by typing yes when prompted.
