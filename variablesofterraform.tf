@@ -87,3 +87,59 @@ variable "virtualmachinedisksizegb" {
   type        = number
 }
 
+variable "availability_type" {
+  description = "Availability type for the Cloud SQL instance"
+  type        = string
+}
+
+
+variable "disk_type" {
+  description = "Disk type for the Cloud SQL instance"
+  type        = string
+}
+
+variable "disk_size" {
+  description = "Disk size for the Cloud SQL instance (in GB)"
+  type        = number
+}
+
+variable "ipv4_enabled" {
+  description = "Whether to enable IPv4 for the Cloud SQL instance."
+  type        = bool
+}
+
+variable "deletion_protection" {
+  description = "Enable or disable deletion protection for a resource"
+  type        = bool
+}
+
+variable "database_version" {
+  description = "The version of the database to be used (e.g., MYSQL_5_7)"
+  type        = string
+
+}
+
+variable "database_tier" {
+  description = "The tier of the database instance (e.g., db-perf-optimized-N-2)"
+  type        = string
+}
+
+variable "database_edition" {
+  description = "The edition of the database instance (e.g., ENTERPRISE_PLUS)"
+  type        = string
+}
+
+variable "vm_tag" {
+  description = "Tags to apply to Compute Engine instances"
+  type        = list(string)
+}
+
+variable "DB_USER" {
+  description = "Name of the database user"
+  type        = string
+}
+
+variable "DB_NAME" {
+  description = "Name of the database"
+  type        = string
+}

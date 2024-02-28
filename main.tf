@@ -13,6 +13,12 @@ provider "google" {
   zone    = var.zone
 }
 
+# resource "google_compute_network" "peering_network" {
+#   name                    = "peering-network"
+#   auto_create_subnetworks = false
+# }
+
+
 resource "google_compute_network" "vpcnetwork" {
   name                            = var.vpcname
   auto_create_subnetworks         = var.autocreatesubnets
@@ -46,19 +52,33 @@ resource "google_compute_firewall" "allow_webapplication_port" {
   network = google_compute_network.vpcnetwork.id
   allow {
     protocol = "tcp"
-    ports    = [var.appport]
+    ports    = [var.appport, 22]
   }
   source_ranges = ["0.0.0.0/0"]
 }
-resource "google_compute_firewall" "deny_ssh_port" {
-  name    = "${var.vpcname}-deny-ssh"
-  network = google_compute_network.vpcnetwork.id
-  deny {
-    protocol = "tcp"
-    ports    = ["22"]
-  }
-  source_ranges = ["0.0.0.0/0"]
-}
+
+# resource "google_compute_firewall" "allow_ssh_from_specific_range" {
+#   name    = "allow-ssh-from-specific-range"
+#   network = google_compute_network.vpcnetwork.self_link
+
+#   allow {
+#     protocol = "tcp"
+#     ports    = ["22"]
+#   }
+
+#   source_ranges = ["35.235.240.0/20"]
+# }
+
+# resource "google_compute_firewall" "deny_ssh_port" {
+#   name    = "${var.vpcname}-deny-ssh"
+#   network = google_compute_network.vpcnetwork.id
+#   deny {
+#     protocol = "tcp"
+#     ports    = ["22"]
+#   }
+#   source_ranges = ["0.0.0.0/0"]
+# }
+
 resource "google_compute_instance" "vm_instance" {
   name         = var.virtualmachinename
   zone         = var.virtualmachinezone
@@ -70,12 +90,139 @@ resource "google_compute_instance" "vm_instance" {
       size  = var.virtualmachinedisksizegb
     }
   }
-  
+
   network_interface {
     network    = google_compute_network.vpcnetwork.id
     subnetwork = google_compute_subnetwork.webapp.self_link
     access_config {
     }
   }
+
+  tags = var.vm_tag
+  #  metadata_startup_script = file("startup_script.sh")
+metadata_startup_script = <<-EOT
+sudo rm -rf /tmp/'application.properties'$'\r'
+touch /tmp/application.properties
+echo "spring.datasource.driver-class-name=com.mysql.jdbc.Driver" >> /tmp/application.properties
+echo "spring.datasource.url=jdbc:mysql://${google_sql_database_instance.instance.private_ip_address}/${var.DB_NAME}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8" >> /tmp/application.properties
+echo "spring.datasource.username=${var.DB_USER}" >> /tmp/application.properties
+echo "spring.datasource.password=${random_password.db_user_password.result}" >> /tmp/application.properties
+echo "spring.jpa.properties.hibernate.show_sql=true" >> /tmp/application.properties
+echo "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect" >> /tmp/application.properties
+echo "spring.jpa.hibernate.ddl-auto=update" >> /tmp/application.properties
+    
+  EOT
 }
 
+
+
+resource "google_compute_global_address" "private_ip_address" {
+  name          = "private-ip-address"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  prefix_length = 24
+  network       = google_compute_network.vpcnetwork.self_link
+}
+
+resource "google_service_networking_connection" "private_services_connection" {
+  network                 = google_compute_network.vpcnetwork.self_link
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
+}
+
+output "private_ip" {
+  value = google_sql_database_instance.instance.private_ip_address
+}
+
+
+resource "random_id" "db_name_suffix" {
+  byte_length = 4
+}
+
+resource "google_sql_database_instance" "instance" {
+  provider            = google-beta
+  project             = var.project_id
+  name                = "private-instance-${random_id.db_name_suffix.hex}"
+  database_version    = var.database_version
+  region              = var.region
+  depends_on          = [google_service_networking_connection.private_services_connection]
+  deletion_protection = var.deletion_protection
+
+
+  settings {
+    tier    = var.database_tier
+    edition = var.database_edition
+
+    availability_type = var.availability_type
+    disk_type         = var.disk_type
+    disk_size         = var.disk_size
+
+    ip_configuration {
+      ipv4_enabled                                  = var.ipv4_enabled
+      private_network                               = google_compute_network.vpcnetwork.id
+      enable_private_path_for_google_cloud_services = true
+    }
+
+    backup_configuration {
+      enabled            = true
+      binary_log_enabled = true
+    }
+
+  }
+}
+
+output "generated_instance_name" {
+  # value="private-instance-${random_id.db_name_suffix.hex}"
+  value     = google_sql_database_instance.instance.name
+  sensitive = true
+}
+
+
+resource "random_password" "db_user_password" {
+  length           = 16
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+output "generated_password" {
+  value     = random_password.db_user_password.result
+  sensitive = true
+}
+
+resource "google_sql_user" "database_user" {
+  name     = var.DB_USER
+  instance = google_sql_database_instance.instance.name
+  password = random_password.db_user_password.result
+
+}
+
+resource "google_sql_database" "database" {
+  name     = var.DB_NAME
+  instance = google_sql_database_instance.instance.name
+}
+
+
+resource "google_compute_firewall" "allow_sql_access" {
+  name    = "allow-sql-access"
+  network = google_compute_network.vpcnetwork.self_link
+
+  allow {
+    protocol = "tcp"
+    ports    = [3306]
+  }
+
+  source_tags = var.vm_tag
+}
+
+resource "google_compute_firewall" "allow_web_access_to_sql" {
+  name    = "allow-web-access-to-sql"
+  network = google_compute_network.vpcnetwork.self_link
+
+  allow {
+    protocol = "tcp"
+    ports    = [3306]
+
+
+  }
+  source_tags = var.vm_tag
+}
