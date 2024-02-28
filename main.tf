@@ -52,7 +52,7 @@ resource "google_compute_firewall" "allow_webapplication_port" {
   network = google_compute_network.vpcnetwork.id
   allow {
     protocol = "tcp"
-    ports    = [var.appport, 22]
+    ports    = [var.appport]
   }
   source_ranges = ["0.0.0.0/0"]
 }
