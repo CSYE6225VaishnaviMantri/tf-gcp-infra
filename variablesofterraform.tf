@@ -145,3 +145,27 @@ variable "DB_NAME" {
   type        = string
 }
 
+variable "DNS_NAME" {
+  description = "Name of the Domain"
+  type        = string
+}
+
+variable "DNS_Record" {
+  description = "Name of the DNS Record"
+  type        = string
+}
+
+variable "DNS_TTL" {
+  description = "Time to live"
+  type        = number
+}
+
+variable "service_account_name" {
+  description = "Name of the Service Account"
+  type        = string
+}
+
+variable "service_account_display_name" {
+  description = "Display Name of the Service Account"
+  type        = string
+}
