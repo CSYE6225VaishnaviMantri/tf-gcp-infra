@@ -169,3 +169,104 @@ variable "service_account_display_name" {
   description = "Display Name of the Service Account"
   type        = string
 }
+
+variable "pub_sub_name" {
+  description = "The name of the Google Cloud Pub/Sub topic"
+  type        = string
+}
+
+variable "pubsubtopic_message_retention_duration" {
+  description = "Pub/Sub Message Retention Duration"
+  type        = string
+}
+
+variable "pubsub_subscription_name" {
+  description = "Pub/Sub Subscription Name"
+  type        = string
+}
+
+variable "ack_deadline_seconds" {
+  description = "Ack Deadline Seconds"
+  type        = number
+}
+variable "ttl" {
+  description = "Pub/Sub TTL"
+  type        = string
+}
+variable "cloudfunction_account_id" {
+  description = "The account id of Cloud Function"
+  type        = string
+}
+variable "cloudfunction_display_name" {
+  description = "The display Name of Cloud Function"
+  type        = string
+}
+variable "cloudstorage_bucketname" {
+  description = "Cloud Storage Bucket Name"
+  type        = string
+}
+
+variable "cloudstorage_bucketobjectname" {
+  description = "Name of cloud storage bucket object"
+  type        = string
+}
+variable "cloudstorage_source" {
+  description = "Zip folder Source Name of cloud storage"
+  type        = string
+}
+
+variable "cloudfunction_name" {
+  description = "Name of the cloud function"
+  type        = string
+}
+variable "cloudfunction_runtime" {
+  description = "Cloud Function Runtime"
+  type        = string
+}
+variable "cloudfunction_entry_point" {
+  description = "Cloud Function Entry point"
+  type        = string
+}
+
+variable "cloudfunction_available_memory_mb" {
+  description = "Cloud Function Available memory"
+  type        = number
+}
+
+variable "max_instance_count" {
+  description = "Maximum number of instances to create for the Cloud Function"
+  type        = number
+}
+
+variable "min_instance_count" {
+  description = "Minimum number of instances to keep running for the Cloud Function"
+  type        = number
+}
+
+variable "available_memory" {
+  description = "Amount of memory available to the Cloud Function instances"
+  type        = string
+}
+
+variable "timeout_seconds" {
+  description = "Timeout duration in seconds for the Cloud Function execution"
+  type        = number
+}
+
+
+variable "vpc_connector_egress_settings" {
+  description = "Egress settings for the VPC connector"
+  type        = string
+}
+
+variable "ingress_settings" {
+  description = "Ingress settings for the Cloud Function"
+  type        = string
+}
+
+variable "all_traffic_on_latest_revision" {
+  description = "Set to true to route all traffic to the latest Cloud Function revision"
+  type        = bool
+}
+
+
