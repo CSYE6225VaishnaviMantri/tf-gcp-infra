@@ -631,3 +631,8 @@ resource "google_compute_firewall" "allow_http" {
   target_tags = ["http-server"]
 }
 
+resource "google_project_iam_binding" "invoker_binding" {
+  members = ["serviceAccount:${google_service_account.function_service_account.email}"]
+  project = var.project_id
+  role    = "roles/run.invoker"
+}
