@@ -641,3 +641,111 @@ variable "allow_lb_name" {
   description = "Name of the resource. Provided by the client when the resource is created"
   type        = string
 }
+
+variable "private_ip_address_service" {
+  description = "The name of the service"
+  type        = string
+}
+
+variable "db_name_byte_length" {
+  description = "The length of the byte"
+  type        = number
+}
+
+variable "enable_private_path_for_google_cloud_services" {
+  description = "Enable private access for Google Cloud services"
+  type        = bool
+}
+
+variable "mysql_ports" {
+  description = "List of MySQL ports"
+  type        = list(number)
+}
+
+variable "firewall_allow_sql_name" {
+  description = "Name of the firewall rule to allow SQL access"
+  type        = string
+}
+
+variable "firewall_allow_web_sql_name" {
+  description = "Name of the firewall rule to allow SQL access"
+  type        = string
+}
+
+variable "bucket_force_destroy" {
+  description = "Indicates whether to perform a force destroy of the resource"
+  type        = bool
+}
+
+variable "instance_template_reservation_type" {
+  description = "Type of reservation"
+  type        = string
+  default     = "NO_RESERVATION"
+}
+
+variable "ring_name" {
+  type        = string
+  description = "Ring Name"
+}
+
+variable "SQL_Key_Name" {
+  type        = string
+  description = "SQL key Name"
+}
+
+variable "rotation_period" {
+  type = string
+}
+
+variable "Cloud_Storage_Key_Name" {
+  type        = string
+  description = "SQL key Name"
+}
+
+variable "Cloud_VM_Key_Name" {
+  type        = string
+  description = "SQL key Name"
+}
+
+variable "MAILGUN_apiKey" {
+  description = "API key for the Mailgun service"
+  type        = string
+}
+
+variable "MAILGUN_domain" {
+  description = "Domain for the Mailgun service"
+  type        = string
+}
+
+# variables.tf
+
+# Name of the rule
+variable "allow_https_name" {
+  description = "Name of the networking rule"
+  type        = string
+}
+
+# Direction (ingress or egress)
+variable "allow_https_direction" {
+  description = "Direction of the rule (ingress or egress)"
+  type        = string
+}
+
+# Protocol (e.g., tcp, udp)
+variable "allow_https_protocol" {
+  description = "Protocol allowed by the rule"
+  type        = string
+}
+
+# Ports allowed
+variable "allow_https_ports" {
+  description = "Specific ports allowed by the rule"
+  type        = list(number)
+}
+
+# Source IP ranges
+variable "allow_https_source_ranges" {
+  description = "Source IP ranges for the rule"
+  type        = list(string)
+}
+
