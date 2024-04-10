@@ -121,7 +121,7 @@ resource "google_compute_global_address" "private_ip_address" {
 
 resource "google_service_networking_connection" "private_services_connection" {
   network                 = google_compute_network.vpcnetwork.self_link
-  service                 = "servicenetworking.googleapis.com"
+  service                 = var.private_ip_address_service
   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
 }
 
@@ -131,7 +131,7 @@ output "private_ip" {
 
 
 resource "random_id" "db_name_suffix" {
-  byte_length = 4
+  byte_length = var.db_name_byte_length
 }
 
 resource "google_sql_database_instance" "instance" {
@@ -142,7 +142,7 @@ resource "google_sql_database_instance" "instance" {
   region              = var.region
   depends_on          = [google_service_networking_connection.private_services_connection]
   deletion_protection = var.deletion_protection
-
+  encryption_key_name = google_kms_crypto_key.cloudsql-key.id
 
   settings {
     tier    = var.database_tier
@@ -155,7 +155,7 @@ resource "google_sql_database_instance" "instance" {
     ip_configuration {
       ipv4_enabled                                  = var.ipv4_enabled
       private_network                               = google_compute_network.vpcnetwork.id
-      enable_private_path_for_google_cloud_services = true
+      enable_private_path_for_google_cloud_services = var.enable_private_path_for_google_cloud_services
     }
 
     backup_configuration {
@@ -163,7 +163,9 @@ resource "google_sql_database_instance" "instance" {
       binary_log_enabled = true
     }
 
+
   }
+
 }
 
 output "generated_instance_name" {
@@ -197,24 +199,24 @@ resource "google_sql_database" "database" {
 
 
 resource "google_compute_firewall" "allow_sql_access" {
-  name    = "allow-sql-access"
+  name    = var.firewall_allow_sql_name
   network = google_compute_network.vpcnetwork.self_link
 
   allow {
-    protocol = "tcp"
-    ports    = [3306]
+    protocol = var.allow_http_protocol
+    ports    = var.mysql_ports
   }
 
   source_tags = var.vm_tag
 }
 
 resource "google_compute_firewall" "allow_web_access_to_sql" {
-  name    = "allow-web-access-to-sql"
+  name    = var.firewall_allow_web_sql_name
   network = google_compute_network.vpcnetwork.self_link
 
   allow {
-    protocol = "tcp"
-    ports    = [3306]
+    protocol = var.allow_http_protocol
+    ports    = var.mysql_ports
 
 
   }
@@ -269,7 +271,6 @@ resource "google_pubsub_topic" "pub_sub_topic" {
   depends_on                 = [google_service_networking_connection.private_services_connection]
 }
 
-# Create a Pub/Sub subscription
 resource "google_pubsub_subscription" "pub_sub_subscription" {
   name                 = var.pubsub_subscription_name
   topic                = google_pubsub_topic.pub_sub_topic.name
@@ -294,8 +295,13 @@ resource "google_project_iam_binding" "function_service_account_roles" {
 }
 
 resource "google_storage_bucket" "function_code_bucket" {
-  name     = var.cloudstorage_bucketname
-  location = var.region
+  name          = var.cloudstorage_bucketname
+  location      = var.region
+  force_destroy = var.bucket_force_destroy
+  encryption {
+    default_kms_key_name = google_kms_crypto_key.cloudstorage-key.id
+  }
+  depends_on = [google_kms_crypto_key_iam_binding.binding]
 }
 
 resource "google_storage_bucket_object" "function_code_objects" {
@@ -333,6 +339,8 @@ resource "google_cloudfunctions2_function" "email_verification_function" {
       SQL_USERNAME       = var.DB_USER
       SQL_PASSWORD       = random_password.db_user_password.result
       webappSQL_DATABASE = var.DB_NAME
+      MAILGUN_apiKey     = var.MAILGUN_apiKey
+      MAILGUN_domain     = var.MAILGUN_domain
     }
 
     ingress_settings               = var.ingress_settings
@@ -386,7 +394,11 @@ resource "google_compute_region_instance_template" "webapp_regional_template" {
     disk_type    = var.virtualmachinedisktype
     auto_delete  = var.it_disk_auto_delete
     boot         = var.it_disk_boot
+    disk_encryption_key {
+      kms_key_self_link = google_kms_crypto_key.cloudvminstance-key.id
+    }
   }
+
   can_ip_forward = var.it_can_ip_forward
 
   network_interface {
@@ -413,17 +425,18 @@ resource "google_compute_region_instance_template" "webapp_regional_template" {
   EOF
   EOT
 
-  # service_account {
-  #   email  = google_service_account.service_account.email
-  #   scopes = var.it_scopes
-  # }
   service_account {
-    email  = google_service_account.compute_service_account.email
+    email  = google_service_account.service_account.email
     scopes = var.it_scopes
   }
+  # service_account {
+  #   email  = google_service_account.compute_service_account.email
+  #   scopes = var.it_scopes
+  # }
   reservation_affinity {
-    type = "NO_RESERVATION"
+    type = var.instance_template_reservation_type
   }
+
 
 }
 
@@ -443,10 +456,10 @@ resource "google_compute_health_check" "http_health_check" {
 
 }
 
-resource "google_compute_target_pool" "instance_target_pool" {
-  name       = var.target_pools_name
-  depends_on = [google_compute_health_check.http_health_check]
-}
+#  resource "google_compute_target_pool" "instance_target_pool" {
+#   name       = var.target_pools_name
+#   depends_on = [google_compute_health_check.http_health_check]
+# }
 
 resource "google_compute_region_instance_group_manager" "webapp_igm" {
   name               = var.instance_group_manager_name
@@ -456,8 +469,8 @@ resource "google_compute_region_instance_group_manager" "webapp_igm" {
   version {
     instance_template = google_compute_region_instance_template.webapp_regional_template.self_link
   }
-  target_pools = [google_compute_target_pool.instance_target_pool.self_link]
-  target_size  = var.igm_target_size
+  # target_pools = [google_compute_target_pool.instance_target_pool.self_link]
+  target_size = var.igm_target_size
   named_port {
     name = var.igm_named_port_name
     port = var.ignm_named_port_port
@@ -468,10 +481,10 @@ resource "google_compute_region_instance_group_manager" "webapp_igm" {
     initial_delay_sec = var.igm_auto_healing_initial_delay_sec
   }
 
-  instance_lifecycle_policy {
-    force_update_on_repair    = "YES"
-    default_action_on_failure = "REPAIR"
-  }
+  # instance_lifecycle_policy {
+  #   force_update_on_repair    = "YES"
+  #   default_action_on_failure = "REPAIR"
+  # }
   depends_on = [
     google_compute_health_check.http_health_check,
     google_compute_region_instance_template.webapp_regional_template
@@ -499,12 +512,9 @@ resource "google_compute_region_autoscaler" "webapp_autoscaler" {
   }
   depends_on = [
     google_compute_health_check.http_health_check,
-    google_compute_region_instance_group_manager.webapp_igm,
-    google_compute_target_pool.instance_target_pool
+    google_compute_region_instance_group_manager.webapp_igm
   ]
 }
-
-
 
 resource "google_compute_global_address" "lb_ipv4_address" {
   name = var.name_lb_ipv4_address
@@ -584,15 +594,15 @@ resource "google_project_iam_binding" "instance_admin_binding" {
   role    = "roles/compute.instanceAdmin.v1"
 
   members = [
-    "serviceAccount:${google_service_account.vm_service_account.email}",
+    "serviceAccount:${google_service_account.service_account.email}",
   ]
 }
 
 
-resource "google_service_account" "vm_service_account" {
-  account_id   = var.Autoscaler_service_account_name
-  display_name = var.Autoscaler_service_account_display_name
-}
+# resource "google_service_account" "vm_service_account" {
+#   account_id   = var.Autoscaler_service_account_name
+#   display_name = var.Autoscaler_service_account_display_name
+# }
 
 resource "google_compute_firewall" "default" {
   name          = var.default_name
@@ -614,25 +624,105 @@ resource "google_service_account" "compute_service_account" {
 resource "google_project_iam_member" "compute_service_account_role" {
   project = var.project_id
   role    = "roles/compute.serviceAgent"
-  member  = "serviceAccount:${google_service_account.compute_service_account.email}"
+  member  = "serviceAccount:${google_service_account.service_account.email}"
 }
 
-resource "google_compute_firewall" "allow_http" {
-  name      = var.allow_http_name
-  network   = google_compute_network.vpcnetwork.id
-  direction = var.allow_http_direction
-  allow {
-    protocol = var.allow_http_protocol
-    ports    = var.allow_http_ports
-  }
+# resource "google_compute_firewall" "allow_http" {
+#   name      = var.allow_http_name
+#   network   = google_compute_network.vpcnetwork.id
+#   direction = var.allow_http_direction
+#   allow {
+#     protocol = var.allow_http_protocol
+#     ports    = var.allow_http_ports
+#   }
 
-  source_ranges = var.allow_http_source_ranges
+#   source_ranges = var.allow_http_source_ranges
 
-  target_tags = ["http-server"]
-}
+#   target_tags = ["http-server"]
+# }
 
 resource "google_project_iam_binding" "invoker_binding" {
   members = ["serviceAccount:${google_service_account.function_service_account.email}"]
   project = var.project_id
   role    = "roles/run.invoker"
+}
+
+resource "google_kms_key_ring" "cloud_key_ring" {
+  name     = var.ring_name
+  location = var.region
+}
+
+resource "google_kms_crypto_key" "cloudsql-key" {
+  name            = var.SQL_Key_Name
+  key_ring        = google_kms_key_ring.cloud_key_ring.id
+  rotation_period = var.rotation_period
+
+}
+
+resource "google_kms_crypto_key_iam_binding" "crypto_key" {
+  crypto_key_id = google_kms_crypto_key.cloudsql-key.id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+
+  members = [
+    "serviceAccount:${google_project_service_identity.instance.email}",
+  ]
+}
+
+
+resource "google_kms_crypto_key" "cloudstorage-key" {
+  name            = var.Cloud_Storage_Key_Name
+  key_ring        = google_kms_key_ring.cloud_key_ring.id
+  rotation_period = var.rotation_period
+
+}
+
+resource "google_project_service_identity" "instance" {
+  provider = google-beta
+  project  = var.project_id
+  service  = "sqladmin.googleapis.com"
+}
+resource "google_kms_crypto_key_iam_binding" "crypto_key_db" {
+  crypto_key_id = google_kms_crypto_key.cloudsql-key.id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+
+  members = [
+    "serviceAccount:${google_project_service_identity.instance.email}",
+  ]
+}
+
+data "google_storage_project_service_account" "gcs_account" {
+}
+
+resource "google_kms_crypto_key_iam_binding" "binding" {
+  crypto_key_id = google_kms_crypto_key.cloudstorage-key.id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  members       = ["serviceAccount:${data.google_storage_project_service_account.gcs_account.email_address}"]
+}
+
+resource "google_kms_crypto_key" "cloudvminstance-key" {
+  name            = var.Cloud_VM_Key_Name
+  key_ring        = google_kms_key_ring.cloud_key_ring.id
+  rotation_period = var.rotation_period
+}
+
+resource "google_kms_crypto_key_iam_binding" "vm_crypto_key" {
+  provider      = google-beta
+  crypto_key_id = google_kms_crypto_key.cloudvminstance-key.id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+
+  members = ["serviceAccount:service-868052426385@compute-system.iam.gserviceaccount.com"]
+}
+
+resource "google_compute_firewall" "allow_https" {
+  name        = var.allow_https_name
+  network     = google_compute_network.vpcnetwork.id
+  direction   = var.allow_https_direction
+  target_tags = ["https-server"]
+
+  allow {
+    protocol = var.allow_https_protocol
+    ports    = var.allow_https_ports
+  }
+
+  source_ranges = var.allow_https_source_ranges
 }
